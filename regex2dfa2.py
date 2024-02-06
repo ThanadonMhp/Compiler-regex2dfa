@@ -10,11 +10,8 @@ class State:
             self.transitions[symbol] = {state}
 
 def regex_to_dfa(regex):
-    # Parse the regular expression and generate NFA
-    # (We assume that the input regex is valid for simplicity)
     nfa_start, nfa_final = parse_regex(regex)
 
-    # Convert NFA to DFA
     dfa_start = epsilon_closure({nfa_start})
     dfa_states = [dfa_start]
     unprocessed_states = [dfa_start]
@@ -23,31 +20,43 @@ def regex_to_dfa(regex):
     while unprocessed_states:
         current_state = unprocessed_states.pop()
 
-        for symbol in get_alphabet(nfa_start, nfa_final):
+        for symbol in get_alphabet(current_state, nfa_final):
             next_states = epsilon_closure(move(current_state, symbol, nfa_start))
-            
+
             if next_states not in dfa_states:
                 dfa_states.append(next_states)
                 unprocessed_states.append(next_states)
-            
+
             if nfa_final in next_states:
                 dfa_final.add(next_states)
 
     # Generate DFA table
     dfa_table = []
-    alphabet = get_alphabet(nfa_start, nfa_final)
+    alphabet = get_alphabet(dfa_start, nfa_final)
 
     for state_set in dfa_states:
         row = [state_set]
         for symbol in alphabet:
             next_state_set = epsilon_closure(move(state_set, symbol, nfa_start))
             row.append(next_state_set)
-        dfa_table.append(row)
+
+            if not any(next_state_set):
+                continue
+
+            # Check if there is a transition from the current state set to the next state set
+            transition_exists = any(
+                state.transitions.get(symbol) and any(next_state in state.transitions[symbol] for next_state in next_state_set)
+                for state in state_set
+            )
+
+            if not transition_exists:
+                new_state = State(f"q{len(dfa_states)}")
+                dfa_states.append(new_state.transitions)
+                for state in state_set:
+                    state.add_transition(symbol, new_state)
 
     # Return the relevant values
     return dfa_table, dfa_start, dfa_final
-
-
 
 def epsilon_closure(states):
     closure = set(states)
