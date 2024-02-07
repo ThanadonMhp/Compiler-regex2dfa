@@ -13,12 +13,12 @@ def thompson(regex_str):
         elif regex_str[i] == '|':
             end_state1, accepting1 = helper(i + 1, start_state, accepting)
             end_state2, accepting2 = helper(i + 1, start_state, False)
-            states.append(states[start_state] + states[end_state1] + states[end_state2])
+            states.append([(q, symbol) for q in start_state for symbol in alphabet] + states[end_state1] + states[end_state2])
             return max(end_state1, end_state2) + 1, accepting1 or accepting2
         elif regex_str[i] == '*':
             start_state2 = len(states)
             end_state, accepting = helper(i + 1, start_state2, accepting)
-            states.append(states[start_state] + states[end_state] + [(end_state, '')])
+            states.append(states[start_state] + states[end_state] + [(end_state, '')] + states[end_state])  # Add loop back to state
             return max(start_state2, end_state) + 1, accepting
         elif regex_str[i] == '^':
             end_state, accepting = helper(i + 1, start_state, accepting and len(start_state) == 1 and start_state[0] == (0, ''))
@@ -44,7 +44,7 @@ def thompson(regex_str):
     return dfa_table, accepting
 
 # Example usage
-regex_str = "ab|ba*"
+regex_str = input("Enter a regex: ")
 dfa_table, accepting = thompson(regex_str)
 
 print("DFA Table:")
