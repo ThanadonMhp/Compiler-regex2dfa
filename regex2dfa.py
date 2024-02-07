@@ -1,88 +1,54 @@
-import regex as re
-import graphviz
+def thompson(regex_str):
+    def helper(i, start_state, accepting):
+        if i == len(regex_str):
+            return start_state, accepting
+        if regex_str[i] in 'ab':
+            end_state = len(states)
+            states.append([(start_state, regex_str[i])])
+            return end_state, accepting
+        elif regex_str[i] == '.':
+            end_state = len(states)
+            states.append([(q, symbol) for q in start_state for symbol in alphabet])
+            return end_state, accepting
+        elif regex_str[i] == '|':
+            end_state1, accepting1 = helper(i + 1, start_state, accepting)
+            end_state2, accepting2 = helper(i + 1, start_state, False)
+            states.append(states[start_state] + states[end_state1] + states[end_state2])
+            return max(end_state1, end_state2) + 1, accepting1 or accepting2
+        elif regex_str[i] == '*':
+            start_state2 = len(states)
+            end_state, accepting = helper(i + 1, start_state2, accepting)
+            states.append(states[start_state] + states[end_state] + [(end_state, '')])
+            return max(start_state2, end_state) + 1, accepting
+        elif regex_str[i] == '^':
+            end_state, accepting = helper(i + 1, start_state, accepting and len(start_state) == 1 and start_state[0] == (0, ''))
+            return end_state, accepting
+        else:
+            raise ValueError("Invalid character")
 
-def regex_to_dfa(regex):
-    regex_obj = re.compile(regex)
-    pattern = regex_obj.pattern
-    print("Pattern:", pattern)
+    states = []
+    alphabet = set(c for c in regex_str if c not in '.*|^')
+    start_state, accepting = helper(0, 0, False)
 
-    stack = []
+    # Create DFA table
+    alphabet_list = list(alphabet)  # Create a list from the set
+    dfa_table = []
+    for state in range(len(states)):
+        row = [-1] * len(alphabet_list)
+        for transition in states[state]:
+            symbol, char = transition
+            if char in alphabet_list:
+                row[alphabet_list.index(char)] = symbol
+        dfa_table.append(row)
 
-    for token in re.finditer(r'\X', pattern):
-        symbol = token.group()
-        print("Processing symbol:", symbol)
+    return dfa_table, accepting
 
-        if symbol.isalnum():
-            stack.append({'label': symbol, 'transitions': {}})
-        elif symbol == '.':
-            if len(stack) >= 2:
-                second_operand = stack.pop()
-                first_operand = stack.pop()
-                first_operand['transitions'][''] = second_operand
-                stack.append(first_operand)
-            else:
-                raise ValueError("Insufficient operands for concatenation")
-        elif symbol == '|':
-            if len(stack) >= 2:
-                second_operand = stack.pop()
-                first_operand = stack.pop()
-                new_start_state = {'label': '', 'transitions': {'': first_operand, '': second_operand}}
-                new_end_state = {'label': '', 'transitions': {}}
-                first_operand['transitions'][''] = new_end_state
-                second_operand['transitions'][''] = new_end_state
-                stack.append(new_start_state)
-            else:
-                raise ValueError("Insufficient operands for union")
-        elif symbol == '*':
-            if len(stack) >= 1:
-                operand = stack.pop()
-                new_start_state = {'label': '', 'transitions': {'': operand}}
-                new_end_state = {'label': '', 'transitions': {'': operand, '': new_start_state}}
-                operand['transitions'][''] = new_end_state
-                stack.append(new_start_state)
-            else:
-                raise ValueError("Insufficient operand for Kleene star")
-        elif symbol == '(':
-            stack.append({'type': 'subpattern', 'label': '', 'transitions': {}})
-        elif symbol == ')':
-            # Ensure there are enough operands for union when encountering ')'
-            if len(stack) >= 2 and stack[-2].get('type') == 'subpattern':
-                second_operand = stack.pop()
-                first_operand = stack.pop()
-                new_start_state = {'label': '', 'transitions': {'': first_operand, '': second_operand}}
-                new_end_state = {'label': '', 'transitions': {}}
-                first_operand['transitions'][''] = new_end_state
-                second_operand['transitions'][''] = new_end_state
-                stack.append(new_start_state)
-            else:
-                raise ValueError("Insufficient operands for union")
+# Example usage
+regex_str = "ab|ba*"
+dfa_table, accepting = thompson(regex_str)
 
-    if len(stack) != 1:
-        raise ValueError("Invalid regular expression")
+print("DFA Table:")
+for row in dfa_table:
+    print(row)
 
-    dfa = stack.pop()
-
-    return dfa
-
-# The rest of the code remains the same
-
-
-def draw_dfa(dfa, filename='dfa'):
-    dot = graphviz.Digraph(format='png')
-    visited_states = set()
-
-    def add_states_and_transitions(state):
-        if id(state) not in visited_states:
-            visited_states.add(id(state))
-            dot.node(str(id(state)), label=state['label'], shape='circle')
-            for label, next_state in state['transitions'].items():
-                dot.edge(str(id(state)), str(id(next_state)), label=label)
-                add_states_and_transitions(next_state)
-
-    add_states_and_transitions(dfa)
-    dot.render(filename, cleanup=True)
-
-# Example usage:
-regex_input = "(a|b)*abb"
-dfa_result = regex_to_dfa(regex_input)
-draw_dfa(dfa_result, filename='example_dfa')
+print("Accepting state:", accepting)
