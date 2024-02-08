@@ -321,3 +321,5 @@ int main()
 
     return 0;
 }
+
+// Credit to https://github.com/swapagarwal/automata-from-regex
