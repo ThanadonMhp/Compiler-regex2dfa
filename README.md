@@ -1,4 +1,4 @@
-"# Compiler-regex2dfa" 
+# Compiler-regex2dfa 
 
 ข้อ 2 Regular Expression to DFA
 
